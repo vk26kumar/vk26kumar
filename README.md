@@ -11,7 +11,7 @@
 ### 💼 Internship Contributions (Spektra)
 🔗 [vishalk-spektra](https://github.com/vishalk-spektra)
 
-![Spektra Contributions](https://github-readme-activity-graph.vercel.app/graph?username=vishalk-spektra&theme=github-compact)
+![Spektra Contributions](https://ghchart.rshah.org/vishalk-spektra)
 
 
 # 📊 GitHub Stats:
