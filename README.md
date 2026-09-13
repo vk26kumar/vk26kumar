@@ -19,7 +19,7 @@ GitHub account:
 
 🔗 **[github.com/vishalk-spektra](https://github.com/vishalk-spektra)**
 
-![Spektra Professional Contributions](https://ghchart.rshah.org/vishalk-spektra)
+![Spektra Professional Contributions](https://ghchart.xqsit94.in/dark:default/vishalk-spektra)
 
 > 🏢 Professional development activity from my Spektra GitHub account.
 ---
