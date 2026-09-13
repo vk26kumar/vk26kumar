@@ -1,0 +1,221 @@
+name: Update Spektra Contributions
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-contributions:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Generate Spektra contribution graph
+        env:
+          GITHUB_TOKEN: ${{ secrets.SPEKTRA_TOKEN || github.token }}
+        run: |
+          python <<'PY'
+          import requests
+          import datetime
+          import html
+          import os
+
+          USERNAME = "vishalk-spektra"
+          OUTPUT = "assets/spektra-contributions.svg"
+
+          os.makedirs("assets", exist_ok=True)
+
+          today = datetime.date.today()
+          start = today - datetime.timedelta(days=365)
+
+          query = """
+          query($login: String!, $from: DateTime!, $to: DateTime!) {
+            user(login: $login) {
+              contributionsCollection(from: $from, to: $to) {
+                contributionCalendar {
+                  totalContributions
+                  weeks {
+                    contributionDays {
+                      date
+                      contributionCount
+                      color
+                    }
+                  }
+                }
+              }
+            }
+          }
+          """
+
+          variables = {
+              "login": USERNAME,
+              "from": start.isoformat() + "T00:00:00Z",
+              "to": today.isoformat() + "T23:59:59Z"
+          }
+
+          token = os.environ["GITHUB_TOKEN"]
+
+          response = requests.post(
+              "https://api.github.com/graphql",
+              json={
+                  "query": query,
+                  "variables": variables
+              },
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Content-Type": "application/json"
+              }
+          )
+
+          if response.status_code != 200:
+              raise Exception(
+                  f"GitHub API error: {response.status_code} {response.text}"
+              )
+
+          data = response.json()
+
+          if "errors" in data:
+              raise Exception(data["errors"])
+
+          calendar = data["data"]["user"]["contributionsCollection"]["contributionCalendar"]
+
+          weeks = calendar["weeks"]
+          total = calendar["totalContributions"]
+
+          print(f"Total Spektra contributions: {total}")
+
+          # GitHub-style dimensions
+          cell = 12
+          gap = 3
+          step = cell + gap
+
+          left = 35
+          top = 30
+
+          width = left + (len(weeks) * step) + 10
+          height = 30 + (7 * step) + 25
+
+          # GitHub-like dark background
+          svg = []
+
+          svg.append(
+              f'<svg xmlns="http://www.w3.org/2000/svg" '
+              f'width="{width}" height="{height}" '
+              f'viewBox="0 0 {width} {height}">'
+          )
+
+          # Month labels
+          month_positions = {}
+
+          for i, week in enumerate(weeks):
+              first_day = datetime.date.fromisoformat(
+                  week["contributionDays"][0]["date"]
+              )
+
+              if first_day.day <= 7:
+                  month_key = (first_day.year, first_day.month)
+
+                  if month_key not in month_positions:
+                      month_positions[month_key] = i
+
+          for (year, month), week_index in month_positions.items():
+              month_name = datetime.date(year, month, 1).strftime("%b")
+
+              x = left + week_index * step
+
+              svg.append(
+                  f'<text x="{x}" y="15" '
+                  f'font-family="Arial, sans-serif" '
+                  f'font-size="11" fill="#8b949e">'
+                  f'{month_name}</text>'
+              )
+
+          # Weekday labels
+          weekday_labels = {
+              1: "Mon",
+              3: "Wed",
+              5: "Fri"
+          }
+
+          for weekday, label in weekday_labels.items():
+              y = top + (weekday - 1) * step + 10
+
+              svg.append(
+                  f'<text x="0" y="{y}" '
+                  f'font-family="Arial, sans-serif" '
+                  f'font-size="10" fill="#8b949e">'
+                  f'{label}</text>'
+              )
+
+          # Contribution cells
+          for week_index, week in enumerate(weeks):
+
+              for day in week["contributionDays"]:
+
+                  date = datetime.date.fromisoformat(day["date"])
+
+                  # GitHub weekday:
+                  # Monday = 1 ... Sunday = 7
+                  weekday = date.isoweekday()
+
+                  x = left + week_index * step
+                  y = top + (weekday - 1) * step
+
+                  count = day["contributionCount"]
+                  color = day["color"]
+
+                  tooltip = (
+                      f"{count} contribution"
+                      f"{'s' if count != 1 else ''} on {date}"
+                  )
+
+                  svg.append(
+                      f'<rect x="{x}" y="{y}" '
+                      f'width="{cell}" height="{cell}" '
+                      f'rx="2" ry="2" '
+                      f'fill="{color}">'
+                      f'<title>{html.escape(tooltip)}</title>'
+                      f'</rect>'
+                  )
+
+          # Total contributions text
+          svg.append(
+              f'<text x="{left}" y="{height - 5}" '
+              f'font-family="Arial, sans-serif" '
+              f'font-size="11" fill="#8b949e">'
+              f'{total} contributions in the last year'
+              f'</text>'
+          )
+
+          svg.append("</svg>")
+
+          with open(OUTPUT, "w", encoding="utf-8") as f:
+              f.write("\n".join(svg))
+
+          print(f"Created {OUTPUT}")
+          PY
+
+      - name: Commit updated graph
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add assets/spektra-contributions.svg
+
+          git diff --cached --quiet || git commit -m "Update Spektra contribution graph"
+
+          git push
