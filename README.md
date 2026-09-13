@@ -49,19 +49,6 @@ Currently working with MERN, React Native, Python, AI/LLM APIs, cloud technologi
 
 ---
 
-## Impact
-
-| Metric | Result |
-| --- | --- |
-| Students served | 5,000+ |
-| IDPS accuracy | 99.0% |
-| IDPS AUC-ROC | 99.7% |
-| B.Tech CSE CGPA | 9.28/10 |
-| GDG Hackathon | 4th place |
-| Code for Bharat | Pre-final round |
-
----
-
 ## GitHub Activity
 
 My engineering work is maintained across personal and professional GitHub accounts.
