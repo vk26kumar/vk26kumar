@@ -1,4 +1,4 @@
-name: Update Spektra Contributions
+name: Update GitHub Contributions
 
 on:
   schedule:
@@ -24,9 +24,9 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Generate Spektra contribution graph
+      - name: Generate combined contribution graph
         env:
-          GITHUB_TOKEN: ${{ secrets.SPEKTRA_TOKEN || github.token }}
+          GITHUB_TOKEN: ${{ secrets.SPEKTRA_TOKEN }}
         run: |
           python <<'PY'
           import requests
@@ -34,8 +34,8 @@ jobs:
           import html
           import os
 
-          USERNAME = "vishalk-spektra"
-          OUTPUT = "assets/spektra-contributions.svg"
+          USERS = ["vk26kumar", "vishalk-spektra"]
+          OUTPUT = "assets/combined-contributions.svg"
 
           os.makedirs("assets", exist_ok=True)
 
@@ -52,7 +52,7 @@ jobs:
                     contributionDays {
                       date
                       contributionCount
-                      color
+                      weekday
                     }
                   }
                 }
@@ -61,55 +61,96 @@ jobs:
           }
           """
 
-          variables = {
-              "login": USERNAME,
-              "from": start.isoformat() + "T00:00:00Z",
-              "to": today.isoformat() + "T23:59:59Z"
-          }
-
           token = os.environ["GITHUB_TOKEN"]
 
-          response = requests.post(
-              "https://api.github.com/graphql",
-              json={
-                  "query": query,
-                  "variables": variables
-              },
-              headers={
-                  "Authorization": f"Bearer {token}",
-                  "Content-Type": "application/json"
-              }
-          )
+          headers = {
+              "Authorization": f"Bearer {token}",
+              "Content-Type": "application/json"
+          }
 
-          if response.status_code != 200:
-              raise Exception(
-                  f"GitHub API error: {response.status_code} {response.text}"
+          all_days = {}
+          totals = {}
+
+          for username in USERS:
+              variables = {
+                  "login": username,
+                  "from": start.isoformat() + "T00:00:00Z",
+                  "to": today.isoformat() + "T23:59:59Z"
+              }
+
+              response = requests.post(
+                  "https://api.github.com/graphql",
+                  json={
+                      "query": query,
+                      "variables": variables
+                  },
+                  headers=headers
               )
 
-          data = response.json()
+              if response.status_code != 200:
+                  raise Exception(
+                      f"GitHub API error for {username}: "
+                      f"{response.status_code} {response.text}"
+                  )
 
-          if "errors" in data:
-              raise Exception(data["errors"])
+              data = response.json()
 
-          calendar = data["data"]["user"]["contributionsCollection"]["contributionCalendar"]
+              if "errors" in data:
+                  raise Exception(data["errors"])
 
-          weeks = calendar["weeks"]
-          total = calendar["totalContributions"]
+              calendar = (
+                  data["data"]["user"]
+                  ["contributionsCollection"]
+                  ["contributionCalendar"]
+              )
 
-          print(f"Total Spektra contributions: {total}")
+              totals[username] = calendar["totalContributions"]
 
-          # GitHub-style dimensions
-          cell = 12
+              for week in calendar["weeks"]:
+                  for day in week["contributionDays"]:
+                      date = day["date"]
+                      count = day["contributionCount"]
+
+                      if date not in all_days:
+                          all_days[date] = 0
+
+                      all_days[date] += count
+
+          combined_total = sum(all_days.values())
+
+          print(f"Personal contributions: {totals['vk26kumar']}")
+          print(f"Professional contributions: {totals['vishalk-spektra']}")
+          print(f"Combined contributions: {combined_total}")
+
+          # GitHub-like graph dimensions
+          cell = 13
           gap = 3
           step = cell + gap
 
-          left = 35
-          top = 30
+          left = 42
+          top = 32
 
-          width = left + (len(weeks) * step) + 10
-          height = 30 + (7 * step) + 25
+          # Build continuous 7-day calendar
+          dates = []
+          current = start
 
-          # GitHub-like dark background
+          while current <= today:
+              dates.append(current)
+              current += datetime.timedelta(days=1)
+
+          # Align first day to Monday
+          first_monday = start - datetime.timedelta(days=start.weekday())
+
+          weeks = []
+          current = first_monday
+
+          while current <= today:
+              weeks.append(current)
+              current += datetime.timedelta(days=7)
+
+          width = left + len(weeks) * step + 10
+          height = top + 7 * step + 45
+
           svg = []
 
           svg.append(
@@ -118,41 +159,37 @@ jobs:
               f'viewBox="0 0 {width} {height}">'
           )
 
+          svg.append(
+              '<rect width="100%" height="100%" fill="#0d1117" rx="8"/>'
+          )
+
           # Month labels
-          month_positions = {}
+          previous_month = None
 
-          for i, week in enumerate(weeks):
-              first_day = datetime.date.fromisoformat(
-                  week["contributionDays"][0]["date"]
-              )
+          for week_index, monday in enumerate(weeks):
+              month = monday.month
 
-              if first_day.day <= 7:
-                  month_key = (first_day.year, first_day.month)
+              if month != previous_month:
+                  month_name = monday.strftime("%b")
 
-                  if month_key not in month_positions:
-                      month_positions[month_key] = i
+                  svg.append(
+                      f'<text x="{left + week_index * step}" y="17" '
+                      f'font-family="Arial, sans-serif" '
+                      f'font-size="11" fill="#8b949e">'
+                      f'{month_name}</text>'
+                  )
 
-          for (year, month), week_index in month_positions.items():
-              month_name = datetime.date(year, month, 1).strftime("%b")
-
-              x = left + week_index * step
-
-              svg.append(
-                  f'<text x="{x}" y="15" '
-                  f'font-family="Arial, sans-serif" '
-                  f'font-size="11" fill="#8b949e">'
-                  f'{month_name}</text>'
-              )
+                  previous_month = month
 
           # Weekday labels
-          weekday_labels = {
-              1: "Mon",
-              3: "Wed",
-              5: "Fri"
+          labels = {
+              0: "Mon",
+              2: "Wed",
+              4: "Fri"
           }
 
-          for weekday, label in weekday_labels.items():
-              y = top + (weekday - 1) * step + 10
+          for weekday, label in labels.items():
+              y = top + weekday * step + 10
 
               svg.append(
                   f'<text x="0" y="{y}" '
@@ -162,43 +199,100 @@ jobs:
               )
 
           # Contribution cells
-          for week_index, week in enumerate(weeks):
+          for week_index, monday in enumerate(weeks):
 
-              for day in week["contributionDays"]:
+              for weekday in range(7):
 
-                  date = datetime.date.fromisoformat(day["date"])
+                  date = monday + datetime.timedelta(days=weekday)
 
-                  # GitHub weekday:
-                  # Monday = 1 ... Sunday = 7
-                  weekday = date.isoweekday()
+                  if date < start or date > today:
+                      continue
+
+                  count = all_days.get(date.isoformat(), 0)
+
+                  # GitHub-like contribution intensity
+                  if count == 0:
+                      color = "#161b22"
+                  elif count <= 2:
+                      color = "#0e4429"
+                  elif count <= 5:
+                      color = "#006d32"
+                  elif count <= 10:
+                      color = "#26a641"
+                  else:
+                      color = "#39d353"
 
                   x = left + week_index * step
-                  y = top + (weekday - 1) * step
-
-                  count = day["contributionCount"]
-                  color = day["color"]
+                  y = top + weekday * step
 
                   tooltip = (
-                      f"{count} contribution"
+                      f"{count} combined contribution"
                       f"{'s' if count != 1 else ''} on {date}"
                   )
 
                   svg.append(
                       f'<rect x="{x}" y="{y}" '
                       f'width="{cell}" height="{cell}" '
-                      f'rx="2" ry="2" '
-                      f'fill="{color}">'
+                      f'rx="2" ry="2" fill="{color}">'
                       f'<title>{html.escape(tooltip)}</title>'
                       f'</rect>'
                   )
 
-          # Total contributions text
+          # Combined total
           svg.append(
-              f'<text x="{left}" y="{height - 5}" '
+              f'<text x="{left}" y="{height - 22}" '
               f'font-family="Arial, sans-serif" '
-              f'font-size="11" fill="#8b949e">'
-              f'{total} contributions in the last year'
+              f'font-size="12" fill="#8b949e">'
+              f'{combined_total} combined contributions in the last year'
               f'</text>'
+          )
+
+          # Breakdown
+          breakdown = (
+              f"Personal: {totals['vk26kumar']}  •  "
+              f"Professional: {totals['vishalk-spektra']}"
+          )
+
+          svg.append(
+              f'<text x="{left}" y="{height - 6}" '
+              f'font-family="Arial, sans-serif" '
+              f'font-size="10" fill="#8b949e">'
+              f'{html.escape(breakdown)}'
+              f'</text>'
+          )
+
+          # Legend
+          legend_x = width - 170
+          legend_y = height - 27
+
+          svg.append(
+              f'<text x="{legend_x - 32}" y="{legend_y + 10}" '
+              f'font-family="Arial, sans-serif" '
+              f'font-size="10" fill="#8b949e">Less</text>'
+          )
+
+          legend_colors = [
+              "#161b22",
+              "#0e4429",
+              "#006d32",
+              "#26a641",
+              "#39d353"
+          ]
+
+          for i, color in enumerate(legend_colors):
+              x = legend_x + i * 16
+
+              svg.append(
+                  f'<rect x="{x}" y="{legend_y}" '
+                  f'width="12" height="12" rx="2" '
+                  f'fill="{color}"/>'
+              )
+
+          svg.append(
+              f'<text x="{legend_x + 5 * 16 + 3}" '
+              f'y="{legend_y + 10}" '
+              f'font-family="Arial, sans-serif" '
+              f'font-size="10" fill="#8b949e">More</text>'
           )
 
           svg.append("</svg>")
@@ -214,8 +308,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add assets/spektra-contributions.svg
+          git add assets/combined-contributions.svg
 
-          git diff --cached --quiet || git commit -m "Update Spektra contribution graph"
+          git diff --cached --quiet || git commit -m "Update combined contribution graph"
 
           git push
