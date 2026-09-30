@@ -16,7 +16,6 @@
 <text x="0" y="42" font-family="Arial, sans-serif" font-size="10" fill="#8b949e">Mon</text>
 <text x="0" y="74" font-family="Arial, sans-serif" font-size="10" fill="#8b949e">Wed</text>
 <text x="0" y="106" font-family="Arial, sans-serif" font-size="10" fill="#8b949e">Fri</text>
-<rect x="42" y="32" width="13" height="13" rx="2" ry="2" fill="#0e4429"><title>2 combined contributions on 2025-09-29</title></rect>
 <rect x="42" y="48" width="13" height="13" rx="2" ry="2" fill="#161b22"><title>0 combined contributions on 2025-09-30</title></rect>
 <rect x="42" y="64" width="13" height="13" rx="2" ry="2" fill="#0e4429"><title>1 combined contribution on 2025-10-01</title></rect>
 <rect x="42" y="80" width="13" height="13" rx="2" ry="2" fill="#0e4429"><title>2 combined contributions on 2025-10-02</title></rect>
@@ -382,8 +381,9 @@
 <rect x="858" y="128" width="13" height="13" rx="2" ry="2" fill="#161b22"><title>0 combined contributions on 2026-09-27</title></rect>
 <rect x="874" y="32" width="13" height="13" rx="2" ry="2" fill="#26a641"><title>9 combined contributions on 2026-09-28</title></rect>
 <rect x="874" y="48" width="13" height="13" rx="2" ry="2" fill="#161b22"><title>0 combined contributions on 2026-09-29</title></rect>
-<text x="42" y="167" font-family="Arial, sans-serif" font-size="12" fill="#8b949e">377 combined contributions in the last year</text>
-<text x="42" y="183" font-family="Arial, sans-serif" font-size="10" fill="#8b949e">Personal: 242  •  Professional: 135</text>
+<rect x="874" y="64" width="13" height="13" rx="2" ry="2" fill="#161b22"><title>0 combined contributions on 2026-09-30</title></rect>
+<text x="42" y="167" font-family="Arial, sans-serif" font-size="12" fill="#8b949e">375 combined contributions in the last year</text>
+<text x="42" y="183" font-family="Arial, sans-serif" font-size="10" fill="#8b949e">Personal: 240  •  Professional: 135</text>
 <text x="698" y="172" font-family="Arial, sans-serif" font-size="10" fill="#8b949e">Less</text>
 <rect x="730" y="162" width="12" height="12" rx="2" fill="#161b22"/>
 <rect x="746" y="162" width="12" height="12" rx="2" fill="#0e4429"/>
